@@ -11,4 +11,6 @@ data/chunks/
 data/qdrant/
 scratchpad/
 .DS_Store
+# отчёты прогонов оценки; golden.jsonl остаётся в репозитории
+data/eval/*.json
 TODO.md

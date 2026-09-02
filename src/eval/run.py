@@ -1,28 +1,29 @@
-"""Замер качества на golden-наборе (Шаг 7).
+"""Quality measurement over the golden set (Step 7).
 
-    # только retrieval, без LLM — быстро, гоняется на каждую правку ранжирования
+    # retrieval only, no LLM — fast, run it on every ranking change
     python -m src.eval.run --mode retrieval
 
-    # сквозной прогон с генерацией (медленно: ~30 с на запрос)
+    # end-to-end run with generation (slow: ~30 s per query)
     python -m src.eval.run --mode answer
 
-    # в докере, где модели уже подняты:
+    # inside docker, where the models are already loaded:
     docker compose exec -T api python -m src.eval.run --mode retrieval
 
-Метрики retrieval (по видео, негативные запросы исключены):
-    hit@k  — хотя бы одно релевантное видео в top-k
-    MRR    — 1/позиция первого релевантного видео
-    ctx_precision — доля пассажей контекста из релевантных видео: показывает,
-                    сколько бюджета токенов ушло на посторонние ролики
-    edge_rate     — доля пассажей, начатых крайним чанком ролика (вступление
-                    или прощание). Прямой индикатор той проблемы, из-за которой
-                    в контекст попадали «сегодня готовим борщ» вместо рецепта.
+Retrieval metrics (per video, negative queries excluded):
+    hit@k  — at least one relevant video within the top k
+    MRR    — 1/rank of the first relevant video
+    ctx_precision — share of context passages taken from relevant videos, i.e.
+                    how much of the token budget went to unrelated clips
+    edge_rate     — share of passages starting at a clip's edge chunk (intro or
+                    outro). A direct indicator of the defect that used to put
+                    "today we are cooking borscht" into the context instead of
+                    the recipe itself.
 
-Метрики answer:
-    found_acc     — совпал ли found с ожиданием (для negative ожидается false)
-    attribution   — source.video_id попал в relevant
-    steps/ingr    — средняя детализация ответа
-    with_amounts  — доля ингредиентов, где есть число (граммовки)
+Answer metrics:
+    found_acc     — did `found` match the expectation (negatives expect false)
+    attribution   — source.video_id landed inside `relevant`
+    steps/ingr    — how detailed the answer is on average
+    with_amounts  — share of ingredients carrying a number (quantities)
 """
 from __future__ import annotations
 
@@ -43,7 +44,7 @@ RANK_KS = (1, 3, 5)
 
 
 def _chunk_index(chunk_id: str) -> int:
-    """chunk_id имеет вид '<video_id>::007'."""
+    """A chunk_id looks like '<video_id>::007'."""
     try:
         return int(chunk_id.rsplit("::", 1)[1])
     except (IndexError, ValueError):
@@ -64,7 +65,7 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
     rows: list[dict] = []
 
     for it in tqdm(positives, desc="retrieval", unit="q"):
-        # проход 1 — ранжирование: широкий top_videos, иначе hit@5 не измерить
+        # pass 1 — ranking: a wide top_videos, otherwise hit@5 is unmeasurable
         wide = retriever.retrieve(it.query, top_videos=rank_k, rerank=True)
         order = [v.video_id for v in wide.videos]
         rank = next((i + 1 for i, v in enumerate(order) if v in it.relevant), None)
@@ -72,7 +73,7 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
             hits[k].append(1.0 if rank is not None and rank <= k else 0.0)
         rr.append(1.0 / rank if rank else 0.0)
 
-        # проход 2 — боевая конфигурация: что реально уедет в промпт
+        # pass 2 — production config: what actually ends up in the prompt
         kw = {"token_budget": budget} if budget else {}
         prod = retriever.retrieve(it.query, **kw)
         passages = [p for v in prod.videos for p in v.passages]

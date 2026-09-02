@@ -1,14 +1,15 @@
-"""Golden-набор для замера качества RAG (Шаг 7).
+"""The golden set used to measure RAG quality (Step 7).
 
-Один запрос — это вопрос пользователя и список video_id, любой из которых
-считается правильным ответом. Разметка на уровне ВИДЕО, а не чанка: рецепт
-растянут на весь ролик, и требовать попадания в конкретный чанк бессмысленно.
+One entry is a user question plus the list of video_ids that count as a correct
+answer. Labelling is done at the VIDEO level, not the chunk level: a recipe is
+stretched over the whole clip, so demanding a hit on one particular chunk would
+be meaningless.
 
 kind:
-    exact       — название блюда прямо в заголовке ролика
-    paraphrase  — запрос словами пользователя, а не заголовка
-    descriptive — блюдо не названо, задан продукт или задача
-    negative    — в корпусе этого нет, ожидаем честный found=false
+    exact       — the dish name appears in the video title
+    paraphrase  — the query uses the user's words, not the title's
+    descriptive — the dish is not named; an ingredient or a task is given
+    negative    — the corpus has no such recipe, we expect an honest found=false
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ DEFAULT_GOLDEN = ROOT_DIR / "data" / "eval" / "golden.jsonl"
 class GoldenItem(BaseModel):
     id: str
     query: str
-    relevant: list[str] = Field(default_factory=list)   # video_id, любой засчитывается
+    relevant: list[str] = Field(default_factory=list)   # video_id, any of them counts
     kind: str = "exact"
     expect_found: bool = True
     note: str = ""
