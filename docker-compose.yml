@@ -1,0 +1,120 @@
+# The oblomoffood recipe RAG system — the whole infrastructure.
+#
+#   docker compose up -d qdrant vllm api      # production stack (API on :8080)
+#   docker compose up -d pot-provider         # required for ETL (PO token for yt-dlp)
+#   docker compose --profile ui up -d         # + Streamlit on :8501
+#   docker compose --profile tools run --rm indexer   # one-off indexing (CPU)
+#
+# Bulk indexing is better done on the GPU from the host, with vLLM shut down:
+#   docker compose stop vllm
+#   EMBED_DEVICE=cuda python -m src.chunking.run --tokenizer BAAI/bge-m3
+#   EMBED_DEVICE=cuda python -m src.index.build --recreate
+#   docker compose start vllm
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.15.4
+    container_name: oblomoff-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+
+  # PO token generator for InnerTube. Without it yt-dlp gets
+  # "The page needs to be reloaded" from YouTube on playlists and metadata.
+  # The bgutil-ytdlp-pot-provider plugin finds it on 127.0.0.1:4416 by itself.
+  pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:latest
+    container_name: bgutil-provider
+    ports:
+      - "4416:4416"
+    restart: unless-stopped
+
+  # Qwen2.5-14B-Instruct-AWQ — takes up almost all of the 16 GB of VRAM.
+  # The container has to be stopped while indexing on the GPU (see the header).
+  vllm:
+    image: vllm/vllm-openai:v0.11.0
+    container_name: oblomoff-vllm
+    command: >
+      --model Qwen/Qwen2.5-14B-Instruct-AWQ
+      --served-model-name qwen2.5-14b
+      --max-model-len 8192
+      --gpu-memory-utilization 0.92
+      --kv-cache-dtype fp8
+      --enforce-eager
+      --max-num-seqs 8
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    ipc: host
+    environment:
+      - HF_HUB_DISABLE_PROGRESS_BARS=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  api:
+    build: .
+    image: oblomoff-api
+    container_name: oblomoff-api
+    ports:
+      - "8080:8080"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=oblomoff_recipes
+      - LLM_BASE_URL=http://vllm:8000/v1
+      - LLM_MODEL=qwen2.5-14b
+      - EMBED_DEVICE=cpu
+      - RERANK_DEVICE=cpu
+      - RETRIEVAL_RERANK_TOP=12
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+      - ./data:/app/data
+    depends_on:
+      - qdrant
+      - vllm
+    restart: unless-stopped
+
+  # One-off indexing inside compose (CPU embedding — slow, fine for a demo volume).
+  indexer:
+    build: .
+    image: oblomoff-api
+    profiles: ["tools"]
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_COLLECTION=oblomoff_recipes
+      - EMBED_DEVICE=cpu
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+      - ./data:/app/data
+    depends_on:
+      - qdrant
+    command: ["python", "-m", "src.index.build", "--recreate"]
+
+  # Optional web interface.
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    image: oblomoff-ui
+    container_name: oblomoff-ui
+    profiles: ["ui"]
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8080
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  qdrant_storage:
+  hf_cache:

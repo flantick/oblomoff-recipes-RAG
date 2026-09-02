@@ -1,0 +1,44 @@
+# =============================================================
+#  RAG oblomoffood — dependencies grouped by pipeline step
+# =============================================================
+# Step 1: ETL (playlist collection, subtitles with timecodes, text cleaning)
+yt-dlp>=2025.3.31
+youtube-transcript-api>=1.0.3
+# PO token for InnerTube: without it yt-dlp runs into "The page needs to be
+# reloaded" on metadata and playlists. The token provider is started by compose
+# (pot-provider).
+bgutil-ytdlp-pot-provider>=1.3
+razdel>=0.5.0            # Russian sentence tokenization / segmentation
+pydantic>=2.6
+python-dotenv>=1.0.1
+tqdm>=4.66
+loguru>=0.7.2
+
+# Step 1.5: restoring punctuation/casing in ASR transcripts
+transformers>=4.44
+# torch must be installed SEPARATELY for your CUDA. For RTX 50xx (Blackwell, sm_120):
+#   pip install "torch>=2.7" --index-url https://download.pytorch.org/whl/cu128
+# CPU-only (needed only for the silero fallback backend):
+#   pip install "torch>=2.7" --index-url https://download.pytorch.org/whl/cpu
+torch>=2.7
+
+# Step 1.6: local ASR — the primary way of obtaining transcripts.
+# YouTube throttles the subtitle endpoint (timedtext) per IP while the media CDN
+# stays open, so we download the audio track and transcribe it ourselves
+# (see src/etl/asr.py).
+faster-whisper>=1.1
+
+# Step 3: embeddings (BGE-M3: dense+sparse) + the vector database
+# Step 4: FlagEmbedding also provides the BAAI/bge-reranker-v2-m3 reranker
+FlagEmbedding>=1.3
+qdrant-client>=1.12
+
+# Step 5: generation — an LLM behind vLLM (OpenAI-compatible API)
+openai>=1.40
+
+# Step 6: API
+fastapi>=0.111
+uvicorn[standard]>=0.30
+
+# UI (optional): pip install -r requirements.ui.txt
+# streamlit>=1.36

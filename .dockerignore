@@ -1,0 +1,10 @@
+.venv/
+data/
+**/__pycache__/
+*.pyc
+.git/
+.env
+scratchpad/
+*.md
+notebooks/
+test.py
