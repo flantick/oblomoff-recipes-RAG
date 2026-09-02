@@ -1,0 +1,38 @@
+{"id": "g01", "query": "борщ", "relevant": ["J8c3UDmNunA", "JvT1EijNal4"], "kind": "exact", "expect_found": true, "note": "однословный запрос — раньше падал в found=false"}
+{"id": "g02", "query": "плов", "relevant": ["6ND8Yuiyv7A", "ifQWkCpql7A", "VQsc5ZBJqR0"], "kind": "exact", "expect_found": true, "note": "3 ролика, вступление ролика ПЛОВ — перечисление видов"}
+{"id": "g03", "query": "том ям", "relevant": ["Pb_fEYkQSac"], "kind": "exact", "expect_found": true, "note": "единственный ролик, экзотические ингредиенты"}
+{"id": "g04", "query": "солянка", "relevant": ["XzaKGzf19IY"], "kind": "exact", "expect_found": true, "note": "в заголовке заявлены граммовки"}
+{"id": "g05", "query": "лагман", "relevant": ["aZpyonlaGH8"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g06", "query": "харчо", "relevant": ["6wLOShCsr-k", "onU6D--m4rQ"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g07", "query": "манты", "relevant": ["u5MIYC3dpoc"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g08", "query": "салат оливье", "relevant": ["Dfq3z-kUz7Q", "Y9KDVfaEBA0", "Ymc93rlQJjI"], "kind": "exact", "expect_found": true, "note": "Ymc93 — историческая версия, тоже рецепт"}
+{"id": "g09", "query": "тройная уха", "relevant": ["AmnJPMyJF54"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g10", "query": "хачапури по-аджарски", "relevant": ["ro0vaj12yq4", "psy5M_dzbFo", "eng7k3WZxX0"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g11", "query": "пельмени", "relevant": ["7ZslJVduq_Y"], "kind": "exact", "expect_found": true, "note": "короткий ролик, всего 5 чанков"}
+{"id": "g12", "query": "буженина", "relevant": ["goE39ZYLPvI"], "kind": "exact", "expect_found": true, "note": "слово есть только в скобках заголовка"}
+{"id": "g13", "query": "бешбармак", "relevant": ["mbY-jPInaK8"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g14", "query": "карбонара", "relevant": ["Wbb_0MNmWik"], "kind": "exact", "expect_found": true, "note": "ИЗВЕСТНО ТРУДНЫЙ: диалог двух ведущих, много болтовни, нет граммовок"}
+{"id": "g15", "query": "как приготовить самсу", "relevant": ["Rdw3pfsM3u4", "_yfTrT0UkY8"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g16", "query": "гуляш", "relevant": ["ELr7spKxwns", "vajptwRjc9s", "4S9PqREAAmk"], "kind": "exact", "expect_found": true, "note": ""}
+{"id": "g17", "query": "селедка под шубой", "relevant": ["vWglgGIT6fk", "gO2UXzDi-_8"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g18", "query": "салат из селедки со свеклой слоями", "relevant": ["vWglgGIT6fk", "gO2UXzDi-_8"], "kind": "paraphrase", "expect_found": true, "note": "описание блюда без его названия"}
+{"id": "g19", "query": "как замариновать мясо для шашлыка", "relevant": ["t5xTkGDlYl4", "aYSoaKcVKU4", "8m3jS5pO3Mc", "6GuslMDFT9Y", "7_nbUUO04Hw"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g20", "query": "маринад для курицы на мангале", "relevant": ["aYSoaKcVKU4", "t5xTkGDlYl4"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g21", "query": "соус для шаурмы", "relevant": ["hO3uZWjr1SQ"], "kind": "paraphrase", "expect_found": true, "note": "в заголовке «шаверма», в запросе «шаурма»"}
+{"id": "g22", "query": "домашний бургер с котлетой", "relevant": ["zD-0y4sTx9I", "bmnqtV6VdX8", "WxJ4SfmUGgY"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g23", "query": "как приготовить роллы дома", "relevant": ["UO7hEAZ_jSA", "F74dpC4eT4g", "SVChAY_pJyU", "gl9h4Rk-_SY"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g24", "query": "утка с яблоками в духовке", "relevant": ["TMC53rj9LU8", "_Wyjzt0dPbY", "WmXCk-X8Drg"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g25", "query": "индейка на новогодний стол", "relevant": ["3gQ9B8RE-4M", "ETSKsbv1LOk", "9qDERgDIjSw"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g26", "query": "свиные ребра на гриле", "relevant": ["FYpC6BYHEmI", "qLGRrHiAYrU", "tnRhB5xOzM0"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g27", "query": "ризотто с грибами", "relevant": ["tE77VLKVvtI", "KBEmCUCURCw"], "kind": "paraphrase", "expect_found": true, "note": ""}
+{"id": "g28", "query": "гречка с мясом", "relevant": ["j_eBfsqxzUQ", "3idmSuDBM5w"], "kind": "paraphrase", "expect_found": true, "note": "в заголовках «греча с котлетами»"}
+{"id": "g29", "query": "что приготовить из баклажанов", "relevant": ["LnTZZatTecc", "os2HYtR186o", "tG2FhQTCUoo", "-kOLTIy7ayI", "Et1zq8pyg8I", "OarZiFtl5VA"], "kind": "descriptive", "expect_found": true, "note": ""}
+{"id": "g30", "query": "блюдо из кабачков", "relevant": ["oAFQnK9_qyI", "iUpwzuO5XKI"], "kind": "descriptive", "expect_found": true, "note": ""}
+{"id": "g31", "query": "блины с начинкой", "relevant": ["Ytnq4aptOxY", "f8a8wHb__iA", "P-17j43xAng", "GdV_7qRvRWI"], "kind": "descriptive", "expect_found": true, "note": ""}
+{"id": "g32", "query": "пицца на тонком тесте", "relevant": ["o39Dlns0UuI", "PosaU2BhSUc", "LWPscEuqolw"], "kind": "descriptive", "expect_found": true, "note": ""}
+{"id": "g33", "query": "как заготовить мясо впрок на месяцы", "relevant": ["4S9PqREAAmk", "3idmSuDBM5w", "tG2FhQTCUoo"], "kind": "descriptive", "expect_found": true, "note": "задача, а не блюдо"}
+{"id": "g34", "query": "котлеты как в детстве", "relevant": ["15N4r-k_wHA", "83-_KimHM6E"], "kind": "descriptive", "expect_found": true, "note": "«по-ГОСТу», «по-пожарски»"}
+{"id": "g35", "query": "рецепт окрошки", "relevant": [], "kind": "negative", "expect_found": false, "note": "0 упоминаний в корпусе"}
+{"id": "g36", "query": "как приготовить хинкали", "relevant": [], "kind": "negative", "expect_found": false, "note": "1 упоминание вскользь, рецепта нет"}
+{"id": "g37", "query": "тирамису", "relevant": [], "kind": "negative", "expect_found": false, "note": "1 упоминание вскользь"}
+{"id": "g38", "query": "как поменять масло в двигателе", "relevant": [], "kind": "negative", "expect_found": false, "note": "не кулинария вообще"}
