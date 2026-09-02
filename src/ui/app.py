@@ -11,7 +11,7 @@ import streamlit as st
 
 API_URL = os.getenv("API_URL", "http://localhost:8080")
 
-st.set_page_config(page_title="oblomoff • рецепты", page_icon="🍳", layout="centered")
+st.set_page_config(page_title="oblomoff • рецепты", page_icon="🍳", layout="wide")
 st.title("🍳 Рецепты oblomoffood")
 st.caption("RAG по расшифровкам видео канала. Ответ — только из того, что реально сказано в роликах.")
 
@@ -61,24 +61,28 @@ if st.button("Найти рецепт", type="primary") and query:
         st.stop()
 
     st.header(data["dish"] or query)
-    col1, col2 = st.columns(2)
-    with col1:
+    src = data.get("source")
+
+    # Ingredients / steps / source player side by side; the author's note sits
+    # under the player.
+    ing_col, steps_col, source_col = st.columns([1, 1.5, 1.2], gap="large")
+    with ing_col:
         st.subheader("Ингредиенты")
         for i in data["ingredients"]:
             st.write(f"- {i}")
-    with col2:
+
+    with steps_col:
         st.subheader("Приготовление")
         for k, step in enumerate(data["steps"], 1):
             st.write(f"{k}. {step}")
 
-    if data.get("notes"):
-        st.info(data["notes"])
-
-    src = data.get("source")
-    if src:
-        st.subheader("Источник")
-        st.write(f"**{src['title']}** — таймкод {src['timecode']}")
-        st.video(src["url"])
+    with source_col:
+        if src:
+            st.subheader("Источник")
+            st.write(f"**{src['title']}** — таймкод {src['timecode']}")
+            st.video(src["url"])
+        if data.get("notes"):
+            st.info(data["notes"])
 
     other = [s for s in data.get("sources", []) if not src or s["n"] != src["n"]]
     if other:
