@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from loguru import logger
 
-from src.config import RERANK_DEVICE, RERANK_MODEL
+from src.config import RERANK_DEVICE, RERANK_MODEL, RERANK_USE_FP16
 
 
 class Reranker:
@@ -24,6 +24,8 @@ class Reranker:
         from FlagEmbedding import FlagReranker
 
         on_cpu = (device or "").lower() == "cpu"
+        if use_fp16 is None and RERANK_USE_FP16 is not None:
+            use_fp16 = RERANK_USE_FP16 == "1"
         if use_fp16 is None:
             use_fp16 = not on_cpu
         kwargs: dict = {"use_fp16": use_fp16}

@@ -47,7 +47,6 @@ USER_TEMPLATE = """Вопрос: {query}
 
 Верни JSON по схеме из инструкции."""
 
-
 def build_messages(query: str, context: str) -> list[dict]:
     return [
         {"role": "system", "content": SYSTEM_PROMPT},

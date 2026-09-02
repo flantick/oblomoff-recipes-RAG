@@ -10,7 +10,7 @@ from __future__ import annotations
 from loguru import logger
 from pydantic import ValidationError
 
-from src.config import RETRIEVAL_PER_VIDEO, RETRIEVAL_TOP_VIDEOS
+from src.config import RETRIEVAL_MIN_SCORE, RETRIEVAL_PER_VIDEO, RETRIEVAL_TOP_VIDEOS
 from src.generation.llm import LLMClient
 from src.generation.prompts import build_messages
 from src.generation.schemas import LLMRecipe, RecipeAnswer, SourceRef
@@ -53,6 +53,15 @@ def answer(
 
     if not rr.citations:
         return RecipeAnswer(query=query, found=False, model=llm.model, used_reranker=rr.used_reranker)
+
+    # Nothing used to stop an obviously irrelevant context from reaching the LLM.
+    # The reranker's top score puts a floor under that: junk scores far below any
+    # real query, so the call is skipped and ~25 s of generation saved.
+    top_score = max((v.score for v in rr.videos), default=0.0)
+    if top_score < RETRIEVAL_MIN_SCORE:
+        logger.info("Слабое соответствие ({:.4f}) — пропускаю вызов LLM", top_score)
+        return RecipeAnswer(query=query, found=False, sources=sources, model=llm.model,
+                            used_reranker=rr.used_reranker)
 
     messages = build_messages(query, rr.context)
     kw = {} if temperature is None else {"temperature": temperature}

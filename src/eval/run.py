@@ -73,9 +73,11 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
         if it.is_negative:
             wide = retriever.retrieve(it.query, top_videos=rank_k, rerank=True)
             top = wide.videos[0].score if wide.videos else 0.0
-            neg_scores.append(top)
-            rows.append({"id": it.id, "query": it.query, "kind": it.kind,
-                         "rank": None, "top_score": round(top, 4)})
+            prod = retriever.retrieve(it.query)
+            prod_top = max((v.score for v in prod.videos), default=0.0)
+            neg_scores.append(prod_top)
+            rows.append({"id": it.id, "query": it.query, "kind": it.kind, "rank": None,
+                         "top_score": round(top, 4), "prod_score": round(prod_top, 4)})
             continue
         # pass 1 — ranking: a wide top_videos, otherwise hit@5 is unmeasurable
         wide = retriever.retrieve(it.query, top_videos=rank_k, rerank=True)
@@ -102,6 +104,7 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
                 "id": it.id, "query": it.query, "kind": it.kind,
                 "rank": rank, "top": order[:3],
                 "top_score": round(wide.videos[0].score, 4) if wide.videos else 0.0,
+                "prod_score": round(max((v.score for v in prod.videos), default=0.0), 4),
                 "ctx_precision": round(ctx_prec[-1], 3) if ctx_prec else None,
             }
         )
@@ -113,7 +116,10 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
 
     # Separability of a relevance cut-off: a threshold is only safe while the
     # weakest positive still scores above the strongest negative.
-    pos_scores = [r["top_score"] for r in rows if r["rank"] is not None]
+    # The gate in answer() sees the production score, not the wide-run one: the
+    # candidate pool differs (top_videos*per_video*overfetch), so the two are not
+    # interchangeable and calibrating on the wrong one costs real answers.
+    pos_scores = [r["prod_score"] for r in rows if r["rank"] is not None]
     if pos_scores and neg_scores:
         summary["pos_score_min"] = round(min(pos_scores), 4)
         summary["pos_score_p10"] = round(sorted(pos_scores)[len(pos_scores) // 10], 4)

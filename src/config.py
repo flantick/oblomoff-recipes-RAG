@@ -159,6 +159,12 @@ QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "oblomoff_recipes")
 
 # --- Step 4: retrieval -------------------------------------------
 RERANK_MODEL = os.getenv("RERANK_MODEL", "BAAI/bge-reranker-v2-m3")
+# fp16 changes the reranker's logits, and therefore its sigmoid scores: the same
+# query scores 0.23 on CPU (fp32) and 0.36 on GPU (fp16). Ranking is unaffected,
+# but the relevance gates below are calibrated against actual score values, so
+# score-sensitive runs must pin the precision instead of inheriting it from the
+# device. Unset => fp16 on GPU, fp32 on CPU.
+RERANK_USE_FP16 = os.getenv("RERANK_USE_FP16")
 RERANK_DEVICE = os.getenv("RERANK_DEVICE") or None      # "cpu" while the GPU is busy with vLLM
 # A whole recipe lives in ONE video and is stretched over its entire runtime, so
 # we take few videos but go deep into each. With top_videos=3/per_video=2 the
@@ -207,6 +213,21 @@ PLAYLIST_INTENTS: list[tuple[str, str]] = [
     (r"бутер\w*|сэндвич|сендвич|тост\w*", "Бутеры"),
     (r"новогодн|на новый год|рождествен", "Новогодние рецепты"),
 ]
+
+# Relevance floor on the reranker's top score (a sigmoid, so 0..1). Calibrated
+# on the PRODUCTION retrieve() config, not on the eval's wide run: the candidate
+# pool is top_videos*per_video*overfetch, so the two produce different scores.
+#
+# Measured over the golden set: junk queries land at 0.002-0.035 while every true
+# positive but one is above 0.238 — the exception, "как заготовить мясо впрок",
+# sits at 0.019 and is answered correctly. The classes overlap, so this is a
+# floor that skips the LLM call on obvious junk (4 of 8 negatives, ~25 s saved
+# each), not a classifier; the prompt rejects the rest.
+#
+# A "weak context" warning injected into the prompt above this floor was tried
+# and dropped: measured against the negatives it changed nothing at 0.04 or at
+# 0.25, so it was removed rather than kept as unproven machinery.
+RETRIEVAL_MIN_SCORE = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.005"))
 
 # --- Step 5: generation (vLLM, OpenAI-compatible API) -------------
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:8000/v1")
