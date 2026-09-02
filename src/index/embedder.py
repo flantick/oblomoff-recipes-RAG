@@ -14,6 +14,23 @@ from loguru import logger
 from src.config import EMBED_DEVICE, EMBED_MAX_LENGTH, EMBED_MODEL, EMBED_USE_FP16
 
 
+def passage_text(chunk: dict) -> str:
+    """The text of a chunk as indexed: the video title plus the body.
+
+    Without the title, the dish name is only visible to the chunks where the
+    author actually said it — and he usually says it in the intro. That is why
+    a query like "борщ" surfaced the greeting while the middle of the clip,
+    holding the recipe itself, stayed out of reach. Putting the title into the
+    text gives every chunk of the clip its name and fixes this at the index
+    level rather than with weights in the reranker.
+
+    Queries are encoded as-is: BGE-M3 is symmetric and needs no prefixes.
+    """
+    title = (chunk.get("title") or "").strip()
+    text = chunk.get("text") or ""
+    return f"{title}\n\n{text}" if title else text
+
+
 @dataclass
 class Embedding:
     dense: list[float]

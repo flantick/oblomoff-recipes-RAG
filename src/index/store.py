@@ -20,6 +20,7 @@ LEXICAL = "lexical"
 
 _PAYLOAD_INDEXES = [
     ("video_id", models.PayloadSchemaType.KEYWORD),
+    ("chunk_index", models.PayloadSchemaType.INTEGER),   # filtered on in fetch_chunks
     ("section", models.PayloadSchemaType.KEYWORD),
     ("has_ingredients", models.PayloadSchemaType.BOOL),
     ("has_steps", models.PayloadSchemaType.BOOL),
@@ -53,18 +54,37 @@ class VectorStore:
         if exists and recreate:
             self.client.delete_collection(self.collection)
             exists = False
-        if exists:
-            return
-        self.client.create_collection(
-            self.collection,
-            vectors_config={
-                DENSE: models.VectorParams(size=dense_size, distance=models.Distance.COSINE)
-            },
-            sparse_vectors_config={LEXICAL: models.SparseVectorParams()},
-        )
+        if not exists:
+            self.client.create_collection(
+                self.collection,
+                vectors_config={
+                    DENSE: models.VectorParams(size=dense_size, distance=models.Distance.COSINE)
+                },
+                sparse_vectors_config={LEXICAL: models.SparseVectorParams()},
+            )
+            logger.info("Коллекция {} создана", self.collection)
+        self.ensure_payload_indexes()
+
+    def ensure_payload_indexes(self) -> None:
+        """Creates any payload indexes missing from a live collection.
+
+        Indexes used to be created only on the creation path, so a newly added
+        one arrived exclusively with --recreate: on an existing collection
+        ensure_collection returned early via `if exists: return`.
+        """
+        try:
+            have = set((self.client.get_collection(self.collection).payload_schema or {}).keys())
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Не удалось прочитать схему payload: {}", exc)
+            have = set()
         for field, schema in _PAYLOAD_INDEXES:
-            self.client.create_payload_index(self.collection, field_name=field, field_schema=schema)
-        logger.info("Коллекция {} создана", self.collection)
+            if field in have:
+                continue
+            try:
+                self.client.create_payload_index(self.collection, field_name=field, field_schema=schema)
+                logger.info("Payload-индекс создан: {}", field)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Payload-индекс {} не создан: {}", field, exc)
 
     # --- writing ----------------------------------------------
     def upsert(self, chunks: list[dict[str, Any]], embs: list[Embedding], *, batch: int = 128) -> int:
