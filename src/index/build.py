@@ -20,7 +20,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from src.config import DENSE_VECTOR_SIZE, QDRANT_COLLECTION, QDRANT_URL, ROOT_DIR
-from src.index.embedder import BGEM3Embedder
+from src.index.embedder import BGEM3Embedder, passage_text
 from src.index.store import VectorStore
 
 DEFAULT_CHUNKS = ROOT_DIR / "data" / "chunks" / "chunks.jsonl"
@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     step = max(args.batch_size * 8, args.upsert_batch)
     for i in tqdm(range(0, len(chunks), step), desc="embed+upsert", unit="batch"):
         part = chunks[i:i + step]
-        embs = embedder.encode_passages([c["text"] for c in part])
+        embs = embedder.encode_passages([passage_text(c) for c in part])
         written += store.upsert(part, embs, batch=args.upsert_batch)
 
     total = store.count()

@@ -1,7 +1,9 @@
 """Schemas of the structured recipe answer (Step 5)."""
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class SourceRef(BaseModel):
@@ -20,6 +22,29 @@ class LLMRecipe(BaseModel):
     steps: list[str] = Field(default_factory=list)
     source_n: int | None = None           # number [n] of the main fragment
     notes: str | None = None
+
+    @field_validator("source_n", mode="before")
+    @classmethod
+    def _coerce_source_n(cls, v):
+        """Accepts [3, 4], "[1]" and "фрагмент 2" as well as a plain 3.
+
+        The model regularly cites several fragments here instead of one. A
+        strict int failed validation, and answer() then discarded a fully
+        extracted recipe over the format of a citation number — to the user that
+        looked exactly like "there is no answer in the transcripts".
+        """
+        if v is None or isinstance(v, bool):
+            return None
+        if isinstance(v, int):
+            return v
+        if isinstance(v, (list, tuple, set)):
+            return cls._coerce_source_n(next(iter(v), None))
+        if isinstance(v, float):
+            return int(v)
+        if isinstance(v, str):
+            m = re.search(r"\d+", v)
+            return int(m.group()) if m else None
+        return None
 
 
 class RecipeAnswer(BaseModel):

@@ -1,28 +1,29 @@
-"""Замер качества на golden-наборе (Шаг 7).
+"""Quality measurement over the golden set (Step 7).
 
-    # только retrieval, без LLM — быстро, гоняется на каждую правку ранжирования
+    # retrieval only, no LLM — fast, run it on every ranking change
     python -m src.eval.run --mode retrieval
 
-    # сквозной прогон с генерацией (медленно: ~30 с на запрос)
+    # end-to-end run with generation (slow: ~30 s per query)
     python -m src.eval.run --mode answer
 
-    # в докере, где модели уже подняты:
+    # inside docker, where the models are already loaded:
     docker compose exec -T api python -m src.eval.run --mode retrieval
 
-Метрики retrieval (по видео, негативные запросы исключены):
-    hit@k  — хотя бы одно релевантное видео в top-k
-    MRR    — 1/позиция первого релевантного видео
-    ctx_precision — доля пассажей контекста из релевантных видео: показывает,
-                    сколько бюджета токенов ушло на посторонние ролики
-    edge_rate     — доля пассажей, начатых крайним чанком ролика (вступление
-                    или прощание). Прямой индикатор той проблемы, из-за которой
-                    в контекст попадали «сегодня готовим борщ» вместо рецепта.
+Retrieval metrics (per video, negative queries excluded):
+    hit@k  — at least one relevant video within the top k
+    MRR    — 1/rank of the first relevant video
+    ctx_precision — share of context passages taken from relevant videos, i.e.
+                    how much of the token budget went to unrelated clips
+    edge_rate     — share of passages starting at a clip's edge chunk (intro or
+                    outro). A direct indicator of the defect that used to put
+                    "today we are cooking borscht" into the context instead of
+                    the recipe itself.
 
-Метрики answer:
-    found_acc     — совпал ли found с ожиданием (для negative ожидается false)
-    attribution   — source.video_id попал в relevant
-    steps/ingr    — средняя детализация ответа
-    with_amounts  — доля ингредиентов, где есть число (граммовки)
+Answer metrics:
+    found_acc     — did `found` match the expectation (negatives expect false)
+    attribution   — source.video_id landed inside `relevant`
+    steps/ingr    — how detailed the answer is on average
+    with_amounts  — share of ingredients carrying a number (quantities)
 """
 from __future__ import annotations
 
@@ -43,7 +44,7 @@ RANK_KS = (1, 3, 5)
 
 
 def _chunk_index(chunk_id: str) -> int:
-    """chunk_id имеет вид '<video_id>::007'."""
+    """A chunk_id looks like '<video_id>::007'."""
     try:
         return int(chunk_id.rsplit("::", 1)[1])
     except (IndexError, ValueError):
@@ -62,9 +63,23 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
     ctx_prec: list[float] = []
     edge: list[float] = []
     rows: list[dict] = []
+    # Negatives are scored too, but only for their top_score: the gap between the
+    # weakest positive and the strongest negative is what a relevance cut-off
+    # would have to fit into, and guessing that number is how you throw away
+    # good answers.
+    neg_scores: list[float] = []
 
-    for it in tqdm(positives, desc="retrieval", unit="q"):
-        # проход 1 — ранжирование: широкий top_videos, иначе hit@5 не измерить
+    for it in tqdm(items, desc="retrieval", unit="q"):
+        if it.is_negative:
+            wide = retriever.retrieve(it.query, top_videos=rank_k, rerank=True)
+            top = wide.videos[0].score if wide.videos else 0.0
+            prod = retriever.retrieve(it.query)
+            prod_top = max((v.score for v in prod.videos), default=0.0)
+            neg_scores.append(prod_top)
+            rows.append({"id": it.id, "query": it.query, "kind": it.kind, "rank": None,
+                         "top_score": round(top, 4), "prod_score": round(prod_top, 4)})
+            continue
+        # pass 1 — ranking: a wide top_videos, otherwise hit@5 is unmeasurable
         wide = retriever.retrieve(it.query, top_videos=rank_k, rerank=True)
         order = [v.video_id for v in wide.videos]
         rank = next((i + 1 for i, v in enumerate(order) if v in it.relevant), None)
@@ -72,7 +87,7 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
             hits[k].append(1.0 if rank is not None and rank <= k else 0.0)
         rr.append(1.0 / rank if rank else 0.0)
 
-        # проход 2 — боевая конфигурация: что реально уедет в промпт
+        # pass 2 — production config: what actually ends up in the prompt
         kw = {"token_budget": budget} if budget else {}
         prod = retriever.retrieve(it.query, **kw)
         passages = [p for v in prod.videos for p in v.passages]
@@ -88,6 +103,8 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
             {
                 "id": it.id, "query": it.query, "kind": it.kind,
                 "rank": rank, "top": order[:3],
+                "top_score": round(wide.videos[0].score, 4) if wide.videos else 0.0,
+                "prod_score": round(max((v.score for v in prod.videos), default=0.0), 4),
                 "ctx_precision": round(ctx_prec[-1], 3) if ctx_prec else None,
             }
         )
@@ -97,9 +114,22 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
     summary["ctx_precision"] = _mean(ctx_prec)
     summary["edge_rate"] = _mean(edge)
 
+    # Separability of a relevance cut-off: a threshold is only safe while the
+    # weakest positive still scores above the strongest negative.
+    # The gate in answer() sees the production score, not the wide-run one: the
+    # candidate pool differs (top_videos*per_video*overfetch), so the two are not
+    # interchangeable and calibrating on the wrong one costs real answers.
+    pos_scores = [r["prod_score"] for r in rows if r["rank"] is not None]
+    if pos_scores and neg_scores:
+        summary["pos_score_min"] = round(min(pos_scores), 4)
+        summary["pos_score_p10"] = round(sorted(pos_scores)[len(pos_scores) // 10], 4)
+        summary["neg_score_max"] = round(max(neg_scores), 4)
+        summary["neg_score_mean"] = _mean(neg_scores)
+
     by_kind: dict[str, dict] = {}
+    pos_ids = {i.id for i in positives}
     for kind in sorted({i.kind for i in positives}):
-        sub = [r for r in rows if r["kind"] == kind]
+        sub = [r for r in rows if r["kind"] == kind and r["id"] in pos_ids]
         by_kind[kind] = {
             "n": len(sub),
             "hit@1": _mean([1.0 if r["rank"] == 1 else 0.0 for r in sub]),
@@ -201,7 +231,8 @@ def main(argv: list[str] | None = None) -> int:
         print("\n  по типам запроса:")
         for kind, m in report["retrieval"]["by_kind"].items():
             print(f"    {kind:12s} n={m['n']:2d}  hit@1={m['hit@1']:.2f}  hit@3={m['hit@3']:.2f}")
-        miss = [r for r in report["retrieval"]["rows"] if r["rank"] is None]
+        miss = [r for r in report["retrieval"]["rows"]
+                if r["rank"] is None and r["kind"] != "negative"]
         if miss:
             print(f"\n  промахи ({len(miss)}):")
             for r in miss:
