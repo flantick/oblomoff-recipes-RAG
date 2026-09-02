@@ -17,8 +17,19 @@ st.caption("RAG по расшифровкам видео канала. Отве�
 
 with st.sidebar:
     st.subheader("Параметры")
-    top_videos = st.slider("Видео в контексте", 1, 6, 3)
-    per_video = st.slider("Фрагментов на видео", 1, 4, 2)
+    # The UI container ships without src/config.py, so it cannot read RETRIEVAL_*.
+    # Hard-coding the numbers here silently overrode the server config on every
+    # request — the sliders used to sit at 3/2 while the API had moved to 2/6,
+    # and the slider ceiling of 4 made the configured value unreachable anyway.
+    # Unless the user opts in, the fields are simply not sent and the API applies
+    # its own defaults.
+    override = st.checkbox(
+        "Задать параметры retrieval вручную",
+        value=False,
+        help="По умолчанию используются серверные значения RETRIEVAL_* из конфига API",
+    )
+    top_videos = st.slider("Видео в контексте", 1, 8, 2, disabled=not override)
+    per_video = st.slider("Фрагментов на видео", 1, 12, 6, disabled=not override)
     intent = st.checkbox("Фильтр по категории (плейлисту)", value=False)
     try:
         h = requests.get(f"{API_URL}/health", timeout=5).json()
@@ -32,16 +43,11 @@ query = st.text_input("Что приготовить?", placeholder="как пр
 if st.button("Найти рецепт", type="primary") and query:
     with st.spinner("Ищу в видео и собираю рецепт…"):
         try:
-            r = requests.post(
-                f"{API_URL}/ask",
-                json={
-                    "query": query,
-                    "top_videos": top_videos,
-                    "per_video": per_video,
-                    "use_intent_filter": intent,
-                },
-                timeout=180,
-            )
+            payload = {"query": query, "use_intent_filter": intent}
+            if override:
+                payload["top_videos"] = top_videos
+                payload["per_video"] = per_video
+            r = requests.post(f"{API_URL}/ask", json=payload, timeout=180)
             r.raise_for_status()
             data = r.json()
         except Exception as exc:  # noqa: BLE001
