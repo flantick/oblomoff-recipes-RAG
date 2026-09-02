@@ -36,3 +36,7 @@
 {"id": "g36", "query": "как приготовить хинкали", "relevant": [], "kind": "negative", "expect_found": false, "note": "1 упоминание вскользь, рецепта нет"}
 {"id": "g37", "query": "тирамису", "relevant": [], "kind": "negative", "expect_found": false, "note": "1 упоминание вскользь"}
 {"id": "g38", "query": "как поменять масло в двигателе", "relevant": [], "kind": "negative", "expect_found": false, "note": "не кулинария вообще"}
+{"id": "g39", "query": "стекло, гвозди, бумага", "relevant": [], "kind": "negative", "expect_found": false, "note": "набор существительных, не еда — сообщён пользователем"}
+{"id": "g40", "query": "рецепт счастья", "relevant": [], "kind": "negative", "expect_found": false, "note": "ЛОВУШКА: слово «рецепт» без блюда, система выдавала рецепт чили"}
+{"id": "g41", "query": "как заточить нож", "relevant": [], "kind": "negative", "expect_found": false, "note": "кухонная тема, но не рецепт"}
+{"id": "g42", "query": "автомобильное масло 5w30", "relevant": [], "kind": "negative", "expect_found": false, "note": "не кулинария"}

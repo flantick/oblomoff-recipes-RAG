@@ -63,8 +63,20 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
     ctx_prec: list[float] = []
     edge: list[float] = []
     rows: list[dict] = []
+    # Negatives are scored too, but only for their top_score: the gap between the
+    # weakest positive and the strongest negative is what a relevance cut-off
+    # would have to fit into, and guessing that number is how you throw away
+    # good answers.
+    neg_scores: list[float] = []
 
-    for it in tqdm(positives, desc="retrieval", unit="q"):
+    for it in tqdm(items, desc="retrieval", unit="q"):
+        if it.is_negative:
+            wide = retriever.retrieve(it.query, top_videos=rank_k, rerank=True)
+            top = wide.videos[0].score if wide.videos else 0.0
+            neg_scores.append(top)
+            rows.append({"id": it.id, "query": it.query, "kind": it.kind,
+                         "rank": None, "top_score": round(top, 4)})
+            continue
         # pass 1 — ranking: a wide top_videos, otherwise hit@5 is unmeasurable
         wide = retriever.retrieve(it.query, top_videos=rank_k, rerank=True)
         order = [v.video_id for v in wide.videos]
@@ -89,6 +101,7 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
             {
                 "id": it.id, "query": it.query, "kind": it.kind,
                 "rank": rank, "top": order[:3],
+                "top_score": round(wide.videos[0].score, 4) if wide.videos else 0.0,
                 "ctx_precision": round(ctx_prec[-1], 3) if ctx_prec else None,
             }
         )
@@ -98,9 +111,19 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
     summary["ctx_precision"] = _mean(ctx_prec)
     summary["edge_rate"] = _mean(edge)
 
+    # Separability of a relevance cut-off: a threshold is only safe while the
+    # weakest positive still scores above the strongest negative.
+    pos_scores = [r["top_score"] for r in rows if r["rank"] is not None]
+    if pos_scores and neg_scores:
+        summary["pos_score_min"] = round(min(pos_scores), 4)
+        summary["pos_score_p10"] = round(sorted(pos_scores)[len(pos_scores) // 10], 4)
+        summary["neg_score_max"] = round(max(neg_scores), 4)
+        summary["neg_score_mean"] = _mean(neg_scores)
+
     by_kind: dict[str, dict] = {}
+    pos_ids = {i.id for i in positives}
     for kind in sorted({i.kind for i in positives}):
-        sub = [r for r in rows if r["kind"] == kind]
+        sub = [r for r in rows if r["kind"] == kind and r["id"] in pos_ids]
         by_kind[kind] = {
             "n": len(sub),
             "hit@1": _mean([1.0 if r["rank"] == 1 else 0.0 for r in sub]),
@@ -202,7 +225,8 @@ def main(argv: list[str] | None = None) -> int:
         print("\n  по типам запроса:")
         for kind, m in report["retrieval"]["by_kind"].items():
             print(f"    {kind:12s} n={m['n']:2d}  hit@1={m['hit@1']:.2f}  hit@3={m['hit@3']:.2f}")
-        miss = [r for r in report["retrieval"]["rows"] if r["rank"] is None]
+        miss = [r for r in report["retrieval"]["rows"]
+                if r["rank"] is None and r["kind"] != "negative"]
         if miss:
             print(f"\n  промахи ({len(miss)}):")
             for r in miss:
