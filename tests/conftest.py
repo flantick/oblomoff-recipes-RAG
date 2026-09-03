@@ -164,25 +164,61 @@ class FakeLLM:
     payload      — what chat_json() returns;
     error        — the exception chat_json() raises;
     fail_on_call — calling chat_json() is itself a test failure (for the
-                   branches where the LLM must NOT be reached).
+                   branches where the LLM must NOT be reached);
+    calls        — one (messages, kwargs) pair per chat_json() call, so that a
+                   test can check both the prompt and what was forwarded
+                   alongside it (temperature and the like).
     """
     model: str = "fake-model"
     payload: dict | None = None
     error: Exception | None = None
     fail_on_call: bool = False
     healthy: bool = True
-    calls: list[list[dict]] = field(default_factory=list)
+    calls: list[tuple[list[dict], dict]] = field(default_factory=list)
 
     def chat_json(self, messages: list[dict], **kw) -> dict:
         if self.fail_on_call:
             raise AssertionError("chat_json should not have been called")
-        self.calls.append(messages)
+        self.calls.append((messages, kw))
         if self.error is not None:
             raise self.error
         return dict(self.payload or {"found": False})
 
     def health(self) -> bool:
         return self.healthy
+
+
+@dataclass
+class FakeRetriever:
+    """Stands in for src.retrieval.retriever.Retriever.
+
+    citations/videos/context/used_reranker come back as given, wrapped into a
+    RetrievalResult; calls records the arguments each retrieve() got.
+
+    retrieve() takes **kw rather than named parameters on purpose: the real
+    Retriever.retrieve gives every parameter a default, and the callers differ
+    — answer() passes top_videos/per_video/use_intent_filter, while
+    src/eval/run.py calls retrieve(query) bare and retrieve(query, rerank=True).
+    """
+    citations: list[dict] = field(default_factory=list)
+    videos: list = field(default_factory=list)
+    context: str = ""
+    used_reranker: bool = False
+    mode: str = "hybrid"
+    calls: list[dict] = field(default_factory=list)
+
+    def retrieve(self, query: str, **kw):
+        from src.retrieval.schemas import RetrievalResult
+
+        self.calls.append({"query": query, **kw})
+        return RetrievalResult(
+            query=query,
+            videos=self.videos,
+            context=self.context,
+            citations=self.citations,
+            used_reranker=self.used_reranker,
+            mode=self.mode,
+        )
 
 
 @pytest.fixture
