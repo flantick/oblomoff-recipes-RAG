@@ -75,7 +75,7 @@ def answer(
                             used_reranker=rr.used_reranker)
 
     by_n = {s.n: s for s in sources}
-    primary = by_n.get(rec.source_n) if rec.source_n else None
+    primary = by_n.get(rec.source_n) if rec.source_n is not None else None
     if primary is None and rec.found:
         primary = sources[0]
 

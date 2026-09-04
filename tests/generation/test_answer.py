@@ -276,32 +276,6 @@ def test_answer_found_false_source_stays_none_even_with_sources():
     assert [s.n for s in result.sources] == [1]
 
 
-def test_answer_source_n_zero_currently_falls_back_to_first_source():
-    """Pins today's behaviour on source_n=0: the truthiness check in
-    answer.py:78 skips the lookup, so the fallback wins. Paired with the xfail
-    below — that one says what SHOULD happen, this one catches any change to
-    what DOES happen."""
-    retriever = FakeRetriever(
-        citations=[make_citation(1, title="Другое видео"), make_citation(0, title="Нулевой фрагмент")],
-        videos=[make_video(score=1.0)],
-    )
-    llm = FakeLLM(payload={"found": True, "source_n": 0})
-
-    result = answer("запрос", retriever=retriever, llm=llm)
-
-    assert result.source.n == 1
-    assert result.source.title == "Другое видео"
-
-
-@pytest.mark.xfail(
-    reason="answer.py:78 - `by_n.get(rec.source_n) if rec.source_n else None` "
-    "tests source_n for truthiness instead of `is not None`. source_n=0 is a "
-    "valid citation number but is falsy, so the lookup is skipped and the code "
-    "falls through to the sources[0] fallback, silently discarding the LLM's "
-    "actual choice. Latent rather than live: _build_context numbers citations "
-    "with enumerate(chosen, 1), so a real Retriever never emits n=0.",
-    strict=True,
-)
 def test_answer_keeps_source_when_source_n_is_zero():
     """source_n=0 pointing at a real citation numbered 0 should select that
     citation, not fall back to a different one."""
