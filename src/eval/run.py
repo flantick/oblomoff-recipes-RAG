@@ -91,10 +91,14 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
         kw = {"token_budget": budget} if budget else {}
         prod = retriever.retrieve(it.query, **kw)
         passages = [p for v in prod.videos for p in v.passages]
+        # Per-item value: the row must report THIS query, not the tail of the
+        # run-wide accumulator, so a query without passages reports null.
+        item_ctx_prec = None
         if passages:
-            ctx_prec.append(
+            item_ctx_prec = (
                 sum(1 for p in passages if p.video_id in it.relevant) / len(passages)
             )
+            ctx_prec.append(item_ctx_prec)
             edge.append(
                 sum(1 for p in passages if _chunk_index(p.chunk_ids[0]) == 0) / len(passages)
             )
@@ -105,7 +109,7 @@ def eval_retrieval(items: list[GoldenItem], retriever, rank_k: int, budget: int 
                 "rank": rank, "top": order[:3],
                 "top_score": round(wide.videos[0].score, 4) if wide.videos else 0.0,
                 "prod_score": round(max((v.score for v in prod.videos), default=0.0), 4),
-                "ctx_precision": round(ctx_prec[-1], 3) if ctx_prec else None,
+                "ctx_precision": round(item_ctx_prec, 3) if item_ctx_prec is not None else None,
             }
         )
 

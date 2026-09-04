@@ -276,15 +276,6 @@ def test_eval_retrieval_video_without_passages_does_not_skew_summary_ctx_precisi
 
 
 
-@pytest.mark.xfail(
-    reason="src/eval/run.py:108 sets rows[i]['ctx_precision'] from ctx_prec[-1] "
-    "whenever ctx_prec is non-empty, instead of checking whether THIS item's "
-    "own `passages` list was non-empty. An item whose video has no passages "
-    "silently inherits the previous item's ctx_precision in the per-row report "
-    "instead of getting None, which is misleading when reading the JSON report "
-    "row by row (the aggregate summary metric is unaffected).",
-    strict=True,
-)
 def test_eval_retrieval_row_ctx_precision_is_none_when_item_has_no_passages():
     item1 = make_item(id="q1", query="Q1", relevant=["v1"])
     item2 = make_item(id="q2", query="Q2", relevant=["v2"])
