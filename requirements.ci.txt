@@ -1,0 +1,30 @@
+# =============================================================
+#  Dependencies of the test run (CI and a bare local checkout)
+# =============================================================
+# A deliberate SUBSET of requirements.txt: the suite runs without network, GPU
+# or docker, and the heavy libraries (torch, transformers, FlagEmbedding,
+# faster-whisper) are imported lazily inside functions, so no test ever reaches
+# them. Leaving them out turns a 5-minute install into a 50-second one — and
+# makes CI enforce that laziness for free: a new module-level `import torch`
+# fails here with ModuleNotFoundError.
+#
+# Versions mirror requirements.txt on purpose. CI must test the floor the
+# project actually declares; pinning would keep CI green while a fresh install
+# from requirements.txt is already broken.
+#
+# Adding a dependency to src/ or tests/ means updating BOTH files.
+pydantic>=2.6
+python-dotenv>=1.0.1
+loguru>=0.7.2
+tqdm>=4.66
+qdrant-client>=1.12
+fastapi>=0.111
+yt-dlp>=2025.3.31
+youtube-transcript-api>=1.0.3
+
+# Test tooling — declared nowhere else, so this file is also its manifest.
+# requests is not listed: only src/ui/app.py imports it (see requirements.ui.txt),
+# and it arrives transitively with youtube-transcript-api anyway.
+pytest>=8.0
+pytest-cov>=5.0
+httpx>=0.27              # FastAPI TestClient
