@@ -134,25 +134,12 @@ def test_detect_playlists_matches_salad_inflections_without_boundaries():
 # The filter is called "soft", but a Qdrant `should` filter is a hard
 # restriction: a point passes only if it matches. A false positive therefore
 # silently discards every correct result instead of merely reordering it.
-@pytest.mark.xfail(
-    reason="config.py:207 - the soup pattern matches the END of any word "
-    "ending in 'щи'. 'овощи' is the damaging case: a common culinary query is "
-    "routed to the 'Супы' playlist, and with the intent filter on every "
-    "vegetable recipe outside that playlist is dropped.",
-    strict=True,
-)
 @pytest.mark.parametrize("query", ["овощи", "хрящи", "лещи"])
 def test_detect_playlists_does_not_tag_words_ending_in_schi_as_soup(query):
     """Words merely ending in 'щи' must not be routed to the soup playlist."""
     assert "Супы" not in detect_playlists(query)
 
 
-@pytest.mark.xfail(
-    reason="config.py:210 - the poultry pattern is too broad: it matches any "
-    "word starting with 'кур', including the spice 'куркума' and the dried "
-    "fruit 'курага'. 'плов с куркумой' is routed to the poultry playlist.",
-    strict=True,
-)
 @pytest.mark.parametrize("query", ["куркума", "курага", "плов с куркумой"])
 def test_detect_playlists_does_not_tag_kur_words_as_poultry(query):
     """Culinary words starting with 'кур' that are not poultry must not be
@@ -160,12 +147,6 @@ def test_detect_playlists_does_not_tag_kur_words_as_poultry(query):
     assert POULTRY not in detect_playlists(query)
 
 
-@pytest.mark.xfail(
-    reason="config.py:210 - the duck alternative has no leading word boundary, "
-    "so it matches inside a word: 'минутку' and 'шутка' are routed to the "
-    "poultry playlist, and both are ordinary speech in a transcript query.",
-    strict=True,
-)
 @pytest.mark.parametrize("query", ["минутку", "шутка"])
 def test_detect_playlists_does_not_tag_words_containing_utk_as_poultry(query):
     """Words merely containing 'утк' must not be routed to poultry."""
@@ -175,25 +156,12 @@ def test_detect_playlists_does_not_tag_words_containing_utk_as_poultry(query):
 # --- bugs found in PLAYLIST_INTENTS: false NEGATIVES ---------------------
 # Worse than the false positives above: with the intent filter on, the query is
 # not merely left unfiltered - another pattern routes it to the WRONG playlist.
-@pytest.mark.xfail(
-    reason="config.py:212 - the grill alternative is written without a suffix "
-    "wildcard, so it matches only the exact nominative form. The common "
-    "inflections 'на гриле' and 'грилем' miss the grill playlist entirely; "
-    "combined with the 'щи' bug, 'тушёные овощи на гриле' resolves to "
-    "['Супы'] alone.",
-    strict=True,
-)
 @pytest.mark.parametrize("query", ["запеки на гриле", "запеки грилем"])
 def test_detect_playlists_matches_grill_inflections(query):
     """Inflected forms of 'гриль' must reach the grill playlist."""
     assert detect_playlists(query) == [GRILL]
 
 
-@pytest.mark.xfail(
-    reason="config.py:209 - the mussel alternative is pinned to the plural "
-    "form, so the singular 'мидия' matches no seafood alternative at all.",
-    strict=True,
-)
 def test_detect_playlists_matches_mussel_singular():
     """The singular 'мидия' must reach the seafood playlist."""
     assert detect_playlists("мидия") == [FISH]
