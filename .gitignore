@@ -14,3 +14,7 @@ scratchpad/
 # отчёты прогонов оценки; golden.jsonl остаётся в репозитории
 data/eval/*.json
 TODO.md
+
+# отчёты покрытия
+.coverage
+htmlcov/
