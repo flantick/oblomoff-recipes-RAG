@@ -7,15 +7,39 @@ used by a single module belong in that module's test file.
 """
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import pytest
+from loguru import logger
 
 from src.index.embedder import Embedding
 
 
 # --- resetting global state ------------------------------------------
+@pytest.fixture(autouse=True)
+def _restore_loguru_sink():
+    """Puts a LIVE loguru sink back after a test that reconfigured logging.
+
+    Every CLI entry point in this project opens with logger.remove(), which
+    stops the process-wide handlers. Stashing the handler dict and putting it
+    back does NOT undo that: the objects restored are the same ones that were
+    already stopped, so from then on the whole suite logs into the void and any
+    later test that inspects a warning silently depends on file order.
+
+    So the registry is rebuilt rather than replayed, and only when a test
+    actually disturbed it — loguru's own default is a plain stderr sink.
+    """
+    core = logger._core
+    saved = dict(core.handlers)
+    yield
+    disturbed = core.handlers != saved or any(
+        getattr(h, "_stopped", False) for h in core.handlers.values()
+    )
+    if disturbed:
+        logger.remove()
+        logger.add(sys.stderr)
 @pytest.fixture(autouse=True)
 def _reset_retriever_singleton():
     """get_retriever() caches a Retriever in a module-level variable — without
