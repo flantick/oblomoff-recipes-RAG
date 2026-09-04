@@ -661,15 +661,6 @@ def test_fetch_via_ytdlp_zero_retries_tries_once_then_gives_up(monkeypatch):
     assert sleep_spy.calls == []
 
 
-@pytest.mark.xfail(
-    reason="transcripts.py:223 - the retry loop is range(1, YTDLP_RETRIES_429 + 2), "
-    "so a negative setting makes it empty: the body never runs, _ytdlp_once is "
-    "never called, and execution falls through to the RateLimited at line 236. "
-    "Setting YTDLP_RETRIES_429=-1 to switch retries off therefore marks every "
-    "video rate_limited without a single request. The value comes from the "
-    "environment (config.py:33), so this is reachable in a real run.",
-    strict=True,
-)
 def test_fetch_via_ytdlp_negative_retries_still_makes_one_attempt(monkeypatch):
     """A negative retry count should still fetch once, not fail outright."""
     ok = ([RawCue(text="Hi", start=0.0, duration=1.0)], "ru", True)
@@ -679,17 +670,6 @@ def test_fetch_via_ytdlp_negative_retries_still_makes_one_attempt(monkeypatch):
 
     assert once.calls == 1
     assert result == ok
-
-
-def test_fetch_via_ytdlp_negative_retries_currently_fails_without_trying(monkeypatch):
-    """Pins today's behaviour for the negative setting, alongside the xfail
-    above that says what it ought to be."""
-    once, _sleep_spy = _wire_ytdlp(monkeypatch, [], retries_429=-1)
-
-    with pytest.raises(RateLimited):
-        fetch_via_ytdlp("vid1")
-
-    assert once.calls == 0
 
 
 # ===================================================================

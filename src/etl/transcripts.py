@@ -220,7 +220,8 @@ def fetch_via_ytdlp(video_id: str) -> tuple[list[RawCue], str, bool]:
     """yt-dlp -> json3, with a backoff on HTTP 429."""
     from yt_dlp.utils import DownloadError
 
-    for attempt in range(1, YTDLP_RETRIES_429 + 2):
+    # max(): a negative setting must still make one attempt, not zero.
+    for attempt in range(1, max(YTDLP_RETRIES_429, 0) + 2):
         try:
             return _ytdlp_once(video_id)
         except DownloadError as exc:
