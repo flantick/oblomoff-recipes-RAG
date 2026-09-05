@@ -26,9 +26,17 @@ from src.index.store import VectorStore
 DEFAULT_CHUNKS = ROOT_DIR / "data" / "chunks" / "chunks.jsonl"
 
 
+def non_negative_int(value: str) -> int:
+    """argparse type for --limit: a slice bound, so a negative one is a typo."""
+    n = int(value)
+    if n < 0:
+        raise argparse.ArgumentTypeError(f"ожидается неотрицательное число, получено {value}")
+    return n
+
+
 def load_chunks(path: Path, limit: int | None) -> list[dict]:
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    return rows[:limit] if limit else rows
+    return rows[:limit] if limit is not None else rows
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -42,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--upsert-batch", type=int, default=128)
     p.add_argument("--device", default=None, help="cuda | cpu (по умолчанию авто)")
     p.add_argument("--no-fp16", action="store_true")
-    p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--limit", type=non_negative_int, default=None, help="загрузить только первые N чанков")
     args = p.parse_args(argv)
 
     logger.remove()

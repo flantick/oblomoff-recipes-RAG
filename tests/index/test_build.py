@@ -1,15 +1,17 @@
-"""Tests for src/index/build.py: load_chunks().
+"""Tests for src/index/build.py: load_chunks() and non_negative_int().
 
 main() is a CLI wrapper (argparse, tqdm, a real embedder and a real Qdrant
-client) and is intentionally not covered — see the project's testing conventions.
+client) and is intentionally not covered by project convention. The one
+exception below stops at argument parsing and never reaches that machinery.
 """
 from __future__ import annotations
 
+import argparse
 import json
 
 import pytest
 
-from src.index.build import load_chunks
+from src.index.build import load_chunks, main as build_main, non_negative_int
 
 
 def _write_jsonl(tmp_path, rows: list[dict]):
@@ -36,12 +38,11 @@ def test_load_chunks_limit_variants(tmp_path, limit, expected):
     assert load_chunks(path, limit) == expected
 
 
-def test_load_chunks_limit_zero_returns_all_rows_because_zero_is_falsy(tmp_path):
-    """`rows[:limit] if limit else rows` treats limit=0 as falsy, so it is
-    handled the same as limit=None (all rows), NOT as "load zero rows" — the
-    actual, if surprising, behavior of the current implementation."""
+def test_load_chunks_limit_zero_loads_nothing(tmp_path):
+    """limit=0 means zero rows, not "all of them": only limit=None means
+    "no limit", so a zero is taken at face value."""
     path = _write_jsonl(tmp_path, ROWS)
-    assert load_chunks(path, 0) == ROWS
+    assert load_chunks(path, 0) == []
 
 
 def test_load_chunks_skips_blank_and_whitespace_only_lines(tmp_path):
@@ -80,12 +81,24 @@ def test_load_chunks_invalid_json_raises_json_decode_error(tmp_path):
         load_chunks(path, None)
 
 
-def test_load_chunks_negative_limit_drops_the_last_rows(tmp_path):
-    """A negative limit is a plain Python slice, so --limit -1 quietly loads
-    everything EXCEPT the last chunk rather than nothing.
+def test_non_negative_int_rejects_a_negative_limit():
+    """The CLI refuses --limit -1 instead of silently slicing off the last
+    rows: as a plain slice bound a negative value quietly loads everything
+    except the tail, which is never what the flag was meant to do."""
+    with pytest.raises(argparse.ArgumentTypeError):
+        non_negative_int("-1")
 
-    Recorded, not endorsed: argparse accepts it, and unlike limit=0 the result
-    is silently incomplete rather than obviously wrong.
-    """
-    path = _write_jsonl(tmp_path, ROWS)
-    assert load_chunks(path, -1) == ROWS[:-1]
+
+@pytest.mark.parametrize("value, expected", [("0", 0), ("200", 200)])
+def test_non_negative_int_accepts_zero_and_positive(value, expected):
+    """Zero and positive values pass through as plain ints."""
+    assert non_negative_int(value) == expected
+
+
+def test_build_cli_exits_on_a_negative_limit(capsys):
+    """argparse turns the rejection into the usual exit code 2 plus a usage
+    message, rather than starting an embedding run over a truncated corpus."""
+    with pytest.raises(SystemExit) as exc:
+        build_main(["--limit", "-1"])
+    assert exc.value.code == 2
+    assert "--limit" in capsys.readouterr().err
