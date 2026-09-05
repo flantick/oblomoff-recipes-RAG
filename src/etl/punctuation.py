@@ -258,11 +258,12 @@ class PunctuationRestorer:
                 logits = self._model(**{k: v.to(self.device) for k, v in enc.items()}).logits
             pred = logits.argmax(-1)[0].tolist()
 
-            seen: set[int] = set()
+            # Only the first sub-token of a word can win: centrality depends on
+            # wid alone and the comparison below is strict, so every later
+            # sub-token of the same word ties and loses.
             for pos, wid in enumerate(word_ids):
-                if wid is None or wid in seen:
+                if wid is None:
                     continue
-                seen.add(wid)
                 gidx = ws + wid
                 if gidx >= n:
                     continue

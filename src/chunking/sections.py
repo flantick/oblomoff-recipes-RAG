@@ -53,19 +53,11 @@ def classify_segment(text: str, position: float) -> str:
 
 
 def smooth(labels: list[str]) -> list[str]:
-    """Fills single 'other' labels between identical neighbours and joins
-    'ingredients'/'steps' across a one-label gap."""
+    """Fills a single 'other' label sitting between two identical
+    'ingredients'/'steps' neighbours. A gap of two or more is left alone."""
     out = list(labels)
     for i in range(1, len(out) - 1):
         if out[i] == "other" and out[i - 1] == out[i + 1] and out[i - 1] in {"ingredients", "steps"}:
-            out[i] = out[i - 1]
-    for i in range(2, len(out) - 2):
-        if (
-            out[i] == "other"
-            and out[i - 1] in {"ingredients", "steps"}
-            and out[i - 2] == out[i - 1]
-            and out[i + 1] == out[i - 1]
-        ):
             out[i] = out[i - 1]
     return out
 

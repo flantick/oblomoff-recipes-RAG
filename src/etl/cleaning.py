@@ -166,8 +166,6 @@ def merge_into_blocks(cues: list[RawCue], video_id: str) -> list[CleanSegment]:
 def _resegment(text: str) -> str:
     """Cosmetics: auto-subs have no punctuation, so we merely normalise the case
     of the first letter. Proper punctuation is the job of the later LLM cleanup."""
-    if not text:
-        return ""
     if _HAS_RAZDEL:
         parts = [s.text.strip() for s in sentenize(text)]
         text = " ".join(p for p in parts if p)
