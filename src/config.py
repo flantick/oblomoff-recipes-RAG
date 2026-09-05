@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from loguru import logger
 
 load_dotenv()
 
@@ -17,7 +18,15 @@ DATA_PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- Network settings ---------------------------------------------------
 ETL_SLEEP_SECONDS = float(os.getenv("ETL_SLEEP_SECONDS", "1.0"))
-SUB_LANGS = [s.strip() for s in os.getenv("ETL_SUB_LANGS", "ru,ru-RU").split(",") if s.strip()]
+# An empty ETL_SUB_LANGS used to leave the list empty, and yt-dlp given
+# subtitleslangs=[] downloads nothing while the language is still recorded as
+# "ru" — a run that looks successful and collects no subtitles. Fall back to the
+# default loudly instead.
+SUB_LANGS_DEFAULT = "ru,ru-RU"
+SUB_LANGS = [s.strip() for s in os.getenv("ETL_SUB_LANGS", SUB_LANGS_DEFAULT).split(",") if s.strip()]
+if not SUB_LANGS:
+    logger.warning("ETL_SUB_LANGS пуст, использую значение по умолчанию: {}", SUB_LANGS_DEFAULT)
+    SUB_LANGS = [s.strip() for s in SUB_LANGS_DEFAULT.split(",")]
 PROXY = os.getenv("HTTPS_PROXY") or os.getenv("HTTP_PROXY") or None
 
 # Working around YouTube rate limits: cookies from a logged-in browser plus
