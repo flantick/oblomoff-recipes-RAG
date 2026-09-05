@@ -73,6 +73,9 @@ class VectorStore:
         ensure_collection returned early via `if exists: return`.
         """
         try:
+            # `or {}` is not redundant with the except below: a collection with
+            # no payload schema yet is the normal state of a fresh collection,
+            # and letting that fall into the handler would log a false warning.
             have = set((self.client.get_collection(self.collection).payload_schema or {}).keys())
         except Exception as exc:  # noqa: BLE001
             logger.warning("Не удалось прочитать схему payload: {}", exc)

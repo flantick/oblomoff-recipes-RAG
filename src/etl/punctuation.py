@@ -265,7 +265,10 @@ class PunctuationRestorer:
                 if wid is None:
                     continue
                 gidx = ws + wid
-                if gidx >= n:
+                # --punct-model accepts an arbitrary model, and a foreign
+                # tokenizer's word_ids() may point past the window we fed it.
+                # Unreachable with RUPunct's own tokenizer, hence uncoverable.
+                if gidx >= n:  # pragma: no cover
                     continue
                 centrality = 1.0 - abs((wid - (we - ws) / 2)) / max((we - ws) / 2, 1)
                 if centrality > best_centrality[gidx]:
