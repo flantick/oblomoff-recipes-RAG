@@ -10,11 +10,12 @@ src.etl.transcripts module object (the names the functions under test look up
 as bare globals), and src.etl.transcripts.time.sleep is patched so the HTTP
 429 backoff in fetch_via_ytdlp never actually sleeps.
 
-PROXY and SUB_LANGS are read once, at import time, into module-level names in
-src.etl.transcripts (`from src.config import PROXY, SUB_LANGS, ...`). Setting
-the underlying environment variables in a test would therefore do nothing to
-the already-bound names; every test that needs a particular PROXY/SUB_LANGS
-value monkeypatches the attribute directly on the transcripts module.
+SUB_LANGS is read once, at import time, into a module-level name in
+src.etl.transcripts (`from src.config import SUB_LANGS, ...`). Setting the
+underlying environment variable in a test would therefore do nothing to the
+already-bound name; tests that need a particular value monkeypatch the
+attribute directly on the transcripts module. PROXY is different: _proxy_config
+reads config.PROXY on every call, so those tests patch it on src.config.
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from yt_dlp.utils import DownloadError
 from youtube_transcript_api import FetchedTranscript, FetchedTranscriptSnippet
 from youtube_transcript_api.proxies import GenericProxyConfig, WebshareProxyConfig
 
+import src.config as config
 import src.etl.transcripts as transcripts
 from src.etl.schemas import RawCue
 from src.etl.transcripts import (
@@ -616,14 +618,28 @@ def test_get_transcript_source_ytdlp_never_calls_fetch_via_ytapi(monkeypatch):
 def test_proxy_config_returns_none_when_nothing_is_configured(monkeypatch):
     monkeypatch.delenv("WEBSHARE_PROXY_USERNAME", raising=False)
     monkeypatch.delenv("WEBSHARE_PROXY_PASSWORD", raising=False)
-    monkeypatch.setattr(transcripts, "PROXY", None)
+    monkeypatch.setattr(config, "PROXY", None)
     assert transcripts._proxy_config() is None
+
+
+def test_proxy_config_reads_the_proxy_on_every_call(monkeypatch):
+    """The proxy is looked up through src.config on each call rather than bound
+    at import, so a value set after the module was imported still takes effect —
+    the contract ytdlp_common already keeps, so both halves of the ETL agree on
+    the proxy."""
+    monkeypatch.delenv("WEBSHARE_PROXY_USERNAME", raising=False)
+    monkeypatch.delenv("WEBSHARE_PROXY_PASSWORD", raising=False)
+    monkeypatch.setattr(config, "PROXY", None)
+    assert transcripts._proxy_config() is None
+
+    monkeypatch.setattr(config, "PROXY", "http://late.example:3128")
+    assert transcripts._proxy_config().https_url == "http://late.example:3128"
 
 
 def test_proxy_config_uses_generic_proxy_when_only_proxy_is_set(monkeypatch):
     monkeypatch.delenv("WEBSHARE_PROXY_USERNAME", raising=False)
     monkeypatch.delenv("WEBSHARE_PROXY_PASSWORD", raising=False)
-    monkeypatch.setattr(transcripts, "PROXY", "http://proxy.example:8080")
+    monkeypatch.setattr(config, "PROXY", "http://proxy.example:8080")
 
     cfg = transcripts._proxy_config()
 
@@ -635,7 +651,7 @@ def test_proxy_config_uses_generic_proxy_when_only_proxy_is_set(monkeypatch):
 def test_proxy_config_prefers_webshare_when_its_credentials_are_set(monkeypatch):
     monkeypatch.setenv("WEBSHARE_PROXY_USERNAME", "user1")
     monkeypatch.setenv("WEBSHARE_PROXY_PASSWORD", "pass1")
-    monkeypatch.setattr(transcripts, "PROXY", "http://ignored:8080")
+    monkeypatch.setattr(config, "PROXY", "http://ignored:8080")
 
     cfg = transcripts._proxy_config()
 
@@ -899,6 +915,6 @@ def test_proxy_config_ignores_half_configured_webshare_credentials(
         monkeypatch.setenv("WEBSHARE_PROXY_USERNAME", username)
     if password is not None:
         monkeypatch.setenv("WEBSHARE_PROXY_PASSWORD", password)
-    monkeypatch.setattr(transcripts, "PROXY", None)
+    monkeypatch.setattr(config, "PROXY", None)
 
     assert transcripts._proxy_config() is None

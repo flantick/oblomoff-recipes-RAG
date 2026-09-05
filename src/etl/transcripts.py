@@ -14,7 +14,7 @@ from typing import Any
 from loguru import logger
 
 from src import config
-from src.config import PROXY, SUB_LANGS, YTDLP_RETRIES_429, YTDLP_SLEEP_SUBTITLES
+from src.config import SUB_LANGS, YTDLP_RETRIES_429, YTDLP_SLEEP_SUBTITLES
 from src.etl.schemas import RawCue
 from src.etl.ytdlp_common import ytdlp_network_opts
 
@@ -55,7 +55,14 @@ class RateLimited(TranscriptError):
 def _proxy_config() -> Any | None:
     # Webshare residential is the workaround recommended for bulk collection
     # (see the youtube-transcript-api README).
+    #
+    # config.PROXY is read through the module on every call, not bound at
+    # import: ytdlp_common does the same so that a runtime override reaches
+    # yt-dlp, and binding it here would let the two halves of the ETL disagree
+    # about the proxy.
     import os
+
+    proxy = config.PROXY
 
     ws_user = os.getenv("WEBSHARE_PROXY_USERNAME")
     ws_pass = os.getenv("WEBSHARE_PROXY_PASSWORD")
@@ -66,11 +73,11 @@ def _proxy_config() -> Any | None:
             return WebshareProxyConfig(proxy_username=ws_user, proxy_password=ws_pass)
         except Exception:  # pragma: no cover
             pass
-    if PROXY:
+    if proxy:
         try:
             from youtube_transcript_api.proxies import GenericProxyConfig  # type: ignore
 
-            return GenericProxyConfig(http_url=PROXY, https_url=PROXY)
+            return GenericProxyConfig(http_url=proxy, https_url=proxy)
         except Exception:  # pragma: no cover
             return None
     return None
